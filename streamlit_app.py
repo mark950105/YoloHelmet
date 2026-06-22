@@ -3,8 +3,8 @@ from ultralytics import YOLO
 from PIL import Image, ImageDraw
 import numpy as np
 
-# 1. 設定網頁標題與介紹
-st.set_set_page_config(page_title="安全帽配戴即時偵測系統", page_icon="⛑️", layout="centered")
+# 1. 設定網頁標題與介紹 (這裡已修正為正確的 set_page_config)
+st.set_page_config(page_title="安全帽配戴即時偵測系統", page_icon="⛑️", layout="centered")
 st.title("⛑️ 公共場域行為偵測：安全帽配戴辨識")
 st.markdown("本系統由 AI 模型驅動，上傳騎士照片即可自動偵測是否配戴安全帽。")
 
@@ -64,7 +64,7 @@ if uploaded_file is not None:
                 conf = float(box.conf[0])
                 cls_id = int(box.cls[0])
                 
-                # 對應自訂標籤名稱，若找不到則顯示 Helmet/No-Helmet 猜測
+                # 對應自訂標籤名稱
                 label_name = names.get(cls_id, f"Class {cls_id}")
                 if label_name == "Class 0" or cls_id == 0:
                     display_label = "Helmet (有戴安全帽)"
@@ -76,16 +76,14 @@ if uploaded_file is not None:
                     display_label = f"{label_name}"
                     box_color = "#00FFFF"
                 
-                # 【關鍵修正】自動判斷並校正 YOLO 格式造成的巨大變形框
+                # 座標處理
                 xyxy = box.xyxy[0].tolist()
                 x1, y1, x2, y2 = xyxy
                 
-                # 如果算出來的框大於圖片的 80%，代表座標格式錯位了，切換回正常範圍的相對比例計算
+                # 自動判斷並校正 YOLO 格式造成的巨大變形框
                 if (x2 - x1) > (img_width * 0.8) and (y2 - y1) > (img_height * 0.8):
-                    # 嘗試利用 box.xywh 重新計算精準位置
                     if hasattr(box, 'xywh') and len(box.xywh) > 0:
                         xc, yc, w, h = box.xywh[0].tolist()
-                        # 若仍為相對坐標則放大，若已是絕對坐標則微調
                         if xc <= 1.0:
                             x1 = int((xc - w/2) * img_width)
                             y1 = int((yc - h/2) * img_height)
@@ -96,18 +94,18 @@ if uploaded_file is not None:
                 else:
                     x1, y1, x2, y2 = map(int, [x1, y1, x2, y2])
                 
-                # 邊界保護，防止框畫出圖片外面
+                # 邊界保護
                 x1, y1 = max(0, x1), max(0, y1)
                 x2, y2 = min(img_width, x2), min(img_height, y2)
                 
-                # 畫出精準外框 (寬度設為 4)
+                # 畫出精準外框
                 draw.rectangle([x1, y1, x2, y2], outline=box_color, width=4)
                 
-                # 寫上修正後的標籤與信心度
+                # 寫上標籤與信心度
                 text_content = f"{display_label} {conf:.2f}"
                 draw.rectangle([x1, y1 - 22, x1 + (len(text_content) * 8) + 10, y1], fill=box_color)
                 draw.text((x1 + 5, y1 - 20), text_content, fill="#FFFFFF")
             
-            # 顯示修正後的精準結果
-            st.image(draw_image, caption="AI 偵測結果（座標格式相容修正版）", use_container_width=True)
+            # 顯示結果
+            st.image(draw_image, caption="AI 偵測結果", use_container_width=True)
             st.success("安全帽辨識影像渲染成功！")
